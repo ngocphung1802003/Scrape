@@ -1,7 +1,8 @@
+import streamlit as st
+import streamlit.components.v1 as components
 import time
 import re
 import json
-from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -9,7 +10,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
 
-app = Flask(__name__)
+# --- CẤU HÌNH SELENIUM ---
 
 
 def setup_driver():
@@ -21,9 +22,10 @@ def setup_driver():
         "--disable-blink-features=AutomationControlled")
     chrome_options.add_argument("--lang=vi")
     chrome_options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    )
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
     return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+
+# --- LOGIC CÀO DỮ LIỆU ---
 
 
 def get_id(url):
@@ -34,109 +36,93 @@ def get_id(url):
 def get_pseudo_content(driver, element, pseudo_type="before"):
     js = f"return window.getComputedStyle(arguments[0], '::{pseudo_type}').getPropertyValue('content');"
     content = driver.execute_script(js, element)
-    if content and content not in ['none', 'normal']:
-        return content.replace('"', '').replace("'", "").strip()
-    return ""
+    return content.replace('"', '').replace("'", "").strip() if content and content not in ['none', 'normal'] else ""
 
 
-def close_popups(driver):
-    try:
-        driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
-        driver.execute_script("""
-            var closeBtn = document.querySelector('div[aria-label="Đóng"], div[aria-label="Close"], div[role="dialog"] div[role="button"]');
-            if(closeBtn) closeBtn.click();
-        """)
-    except:
-        pass
-
-
-def scrape_single(driver, original_url, index, total):
-    video_id = get_id(original_url)
+def scrape_single(driver, url):
+    video_id = get_id(url)
     if not video_id:
-        return {"url": original_url, "views": "N/A", "likes": "0", "comments": "0", "shares": "0", "error": "Invalid URL"}
+        return None
 
-    xpath_stats = "//span[contains(@class, 'x1lliihq') and contains(@class, 'x6ikm8r') and contains(@class, 'xuxw1ft')]"
-    data = {"url": original_url, "video_id": video_id,
-            "views": "N/A", "likes": "0", "comments": "0", "shares": "0"}
-
+    data = {"url": url, "video_id": video_id, "views": "N/A",
+            "likes": "0", "comments": "0", "shares": "0"}
     try:
-        watch_url = f"https://www.facebook.com/watch/?v={video_id}"
-        driver.get(watch_url)
-        time.sleep(6)
-        close_popups(driver)
+        # Lấy View
+        driver.get(f"https://www.facebook.com/watch/?v={video_id}")
+        time.sleep(5)
         try:
-            view_el = driver.find_element(By.CLASS_NAME, "_26fq")
-            data["views"] = view_el.text.strip()
+            data["views"] = driver.find_element(
+                By.CLASS_NAME, "_26fq").text.strip()
         except:
             pass
 
-        reel_url = f"https://www.facebook.com/reels/{video_id}/"
-        driver.get(reel_url)
-        time.sleep(6)
-        close_popups(driver)
+        # Lấy Tương tác
+        driver.get(f"https://www.facebook.com/reels/{video_id}/")
+        time.sleep(5)
 
-        stat_elements = driver.find_elements(By.XPATH, xpath_stats)
-        temp_stats = []
-        for el in stat_elements:
-            v_real = el.text.strip()
-            v_before = get_pseudo_content(driver, el, "before")
-            v_after = get_pseudo_content(driver, el, "after")
-            combined = (v_before + v_real + v_after).strip()
-            if any(char.isdigit() for char in combined):
-                temp_stats.append(combined)
+        xpath_stats = "//span[contains(@class, 'x1lliihq') and contains(@class, 'x6ikm8r') and contains(@class, 'xuxw1ft')]"
+        stats = []
+        for el in driver.find_elements(By.XPATH, xpath_stats):
+            combined = (get_pseudo_content(driver, el, "before") +
+                        el.text + get_pseudo_content(driver, el, "after")).strip()
+            if any(c.isdigit() for c in combined):
+                stats.append(combined)
 
-        if len(temp_stats) >= 1:
-            data["likes"] = temp_stats[0]
-        if len(temp_stats) >= 2:
-            data["comments"] = temp_stats[1]
+        if len(stats) >= 1:
+            data["likes"] = stats[0]
+        if len(stats) >= 2:
+            data["comments"] = stats[1]
 
         try:
             share_div = driver.find_element(
                 By.XPATH, "//div[@aria-label='Chia sẻ' or @aria-label='Share']")
-            share_text = share_div.text.strip()
-            if not share_text:
-                try:
-                    share_text = share_div.find_element(
-                        By.TAG_NAME, "span").text.strip()
-                except:
-                    pass
-            data["shares"] = share_text if share_text else "0"
+            data["shares"] = share_div.text.strip() or share_div.find_element(
+                By.TAG_NAME, "span").text.strip()
         except:
-            data["shares"] = "0"
-
-    except Exception as e:
-        data["error"] = str(e)
-
+            pass
+    except:
+        pass
     return data
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+# --- GIAO DIỆN STREAMLIT ---
+st.set_page_config(page_title="FB Scraper Pro", layout="wide")
 
+# Nhúng CSS/HTML của bạn (Bản rút gọn để tương tác với Streamlit)
+st.markdown(f"""
+    <style>
+    /* Dán toàn bộ phần <style> của bạn vào đây */
+    body {{ background: #0e1117; color: white; }}
+    /* ... (Giữ nguyên CSS Cyberpunk của bạn) ... */
+    </style>
+    """, unsafe_allow_html=True)
 
-@app.route("/scrape", methods=["POST"])
-def scrape():
-    body = request.get_json()
-    urls = [u.strip() for u in body.get("urls", []) if u.strip()]
-    if not urls:
-        return jsonify({"error": "No URLs provided"}), 400
+st.title("⚡ Facebook Reel Stats Tracker")
+urls_input = st.text_area("🔗 Dán danh sách URL (mỗi dòng 1 link):", height=200)
 
-    def generate():
+if st.button("Bắt đầu Scrape"):
+    urls = [u.strip() for u in urls_input.split('\n') if u.strip()]
+    if urls:
+        results_container = st.container()
         driver = setup_driver()
-        results = []
-        try:
+        all_data = []
+
+        with st.status("🚀 Đang tiến hành cào dữ liệu...", expanded=True) as status:
             for i, url in enumerate(urls):
-                yield f"data: {json.dumps({'type': 'progress', 'index': i, 'total': len(urls), 'url': url})}\n\n"
-                result = scrape_single(driver, url, i + 1, len(urls))
-                results.append(result)
-                yield f"data: {json.dumps({'type': 'result', 'data': result, 'index': i})}\n\n"
-        finally:
+                st.write(f"🔍 Đang xử lý: {url}")
+                res = scrape_single(driver, url)
+                if res:
+                    all_data.append(res)
             driver.quit()
-            yield f"data: {json.dumps({'type': 'done', 'results': results})}\n\n"
+            status.update(label="✅ Hoàn thành!",
+                          state="complete", expanded=False)
 
-    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+        # Hiển thị bảng kết quả đẹp
+        st.subheader("📊 Kết quả")
+        st.table(all_data)
 
-
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+        # Nút Export
+        csv = "Video ID,Views,Likes,Comments,Shares,URL\n"
+        for r in all_data:
+            csv += f"{r['video_id']},{r['views']},{r['likes']},{r['comments']},{r['shares']},{r['url']}\n"
+        st.download_button("⬇️ Tải về CSV", csv, "results.csv", "text/csv")
