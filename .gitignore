@@ -1,0 +1,34 @@
+__pycache__/
+    .env
+    *.log
+    ```
+
+---
+
+### Bước 2: Tạo Repository trên GitHub
+1.  Truy cập [github.com](https://github.com/) và đăng nhập.
+2.  Nhấn nút **New** (màu xanh) để tạo repo mới.
+3.  Đặt tên (ví dụ: `fb-crawler`), để chế độ **Public** hoặc **Private** tùy bạn.
+4.  Nhấn **Create repository**.
+
+---
+
+### Bước 3: Đẩy code lên GitHub (Dùng Git Bash hoặc Terminal)
+Mở terminal tại thư mục chứa code và chạy các lệnh sau:
+
+```bash
+# Khởi tạo git
+git init
+
+# Thêm tất cả file vào danh sách chờ
+git add .
+
+# Tạo bản ghi chú đầu tiên
+git commit -m "Initial commit: Facebook crawler with Dual-Mode"
+
+# Kết nối với repo trên GitHub (Thay link bằng link repo của bạn)
+git branch -M main
+git remote add origin https://github.com/USER_NAME/fb-crawler.git
+
+# Đẩy code lên
+git push -u origin main

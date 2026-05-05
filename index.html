@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FB Reel Stats Scraper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --card: #ffffff;
+      --border: #ffffff;
+      --accent: #4f8cff;
+      --accent2: #a855f7;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #000000;
+      --muted: #6b7280;
+      --mono: 'Space Mono', monospace;
+      --sans: 'Syne', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(79, 140, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79, 140, 255, 0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glow-orb-1 {
+      width: 600px;
+      height: 600px;
+      background: rgba(79, 140, 255, 0.08);
+      top: -200px;
+      left: -200px;
+    }
+
+    .glow-orb-2 {
+      width: 500px;
+      height: 500px;
+      background: rgba(168, 85, 247, 0.07);
+      bottom: -150px;
+      right: -150px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, rgba(79, 140, 255, 0.15), rgba(168, 85, 247, 0.15));
+      border: 1px solid rgba(79, 140, 255, 0.3);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .logo-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: blink 2s infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    h1 {
+      font-size: clamp(32px, 6vw, 56px);
+      font-weight: 800;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #e8e8f0 30%, #4f8cff 70%, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* Input Panel */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+    }
+
+    .panel-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.8;
+      resize: vertical;
+      min-height: 140px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.1);
+    }
+
+    textarea::placeholder {
+      color: var(--muted);
+    }
+
+    .url-count {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+      text-align: right;
+    }
+
+    .url-count span {
+      color: var(--accent);
+    }
+
+    /* Button */
+    .btn-run {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-run::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.1);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .btn-run:hover::before {
+      opacity: 1;
+    }
+
+    .btn-run:active {
+      transform: scale(0.99);
+    }
+
+    .btn-run:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-icon {
+      font-size: 18px;
+    }
+
+    /* Progress */
+    .progress-bar-wrap {
+      height: 4px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    .progress-text {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      text-align: center;
+      display: none;
+    }
+
+    /* Results table */
+    .results-panel {
+      display: none;
+    }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .result-count {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .btn-export {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 8px;
+      padding: 7px 14px;
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-export:hover {
+      background: rgba(34, 197, 94, 0.2);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    thead tr {
+      background: var(--surface);
+    }
+
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      background: var(--card);
+      border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+      transition: background 0.15s;
+      animation: rowIn 0.3s ease both;
+    }
+
+    @keyframes rowIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    tbody tr:hover {
+      background: var(--surface);
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    td {
+      padding: 14px 16px;
+      white-space: nowrap;
+    }
+
+    .td-url {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--accent);
+    }
+
+    .td-url a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .td-url a:hover {
+      text-decoration: underline;
+    }
+
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .pill-views {
+      background: rgba(79, 140, 255, 0.12);
+      color: #7db3ff;
+    }
+
+    .pill-likes {
+      background: rgba(239, 68, 68, 0.12);
+      color: #fb7185;
+    }
+
+    .pill-comments {
+      background: rgba(245, 158, 11, 0.12);
+      color: #fbbf24;
+    }
+
+    .pill-shares {
+      background: rgba(34, 197, 94, 0.12);
+      color: #4ade80;
+    }
+
+    .status-loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Live log */
+    .log-panel {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .log-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      max-height: 160px;
+      overflow-y: auto;
+      line-height: 1.8;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 8px;
+    }
+
+    .log-time {
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .log-ok {
+      color: var(--green);
+    }
+
+    .log-err {
+      color: var(--red);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-family: var(--mono);
+      font-size: 13px;
+      z-index: 100;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+    }
+
+    .toast.show {
+      transform: none;
+      opacity: 1;
+    }
+
+    .toast.success {
+      border-color: rgba(34, 197, 94, 0.4);
+      color: var(--green);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="glow-orb glow-orb-1"></div>
+  <div class="glow-orb glow-orb-2"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-badge">
+        <div class="logo-dot"></div>
+        FB Scraper v2.0
+      </div>
+      <h1>Facebook Reel<br>Stats Tracker</h1>
+      <p class="subtitle">// Scrape views · likes · comments · shares</p>
+    </div>
+
+    <!-- Input Panel -->
+    <div class="panel">
+      <div class="panel-label">🔗 Danh sách URL</div>
+      <textarea id="urlInput"
+        placeholder="Dán Facebook Reel / Video URLs vào đây&#10;Mỗi link một dòng&#10;&#10;Ví dụ:&#10;https://www.facebook.com/reel/992932273322139&#10;https://www.facebook.com/watch?v=123456789"></textarea>
+      <div class="url-count">Đã nhập: <span id="urlCountNum">0</span> URL</div>
+
+      <div style="margin-top: 16px;">
+        <button class="btn-run" id="runBtn" onclick="startScrape()">
+          <span class="btn-icon">⚡</span>
+          Bắt đầu Scrape
+        </button>
+      </div>
+
+      <div class="progress-bar-wrap" id="progressWrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="progress-text" id="progressText"></div>
+    </div>
+
+    <!-- Live Log -->
+    <div class="log-panel" id="logPanel">
+      <div class="panel">
+        <div class="panel-label">📡 Live Log</div>
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-panel" id="resultsPanel">
+      <div class="panel">
+        <div class="results-header">
+          <div class="panel-label" style="margin-bottom:0">📊 Kết quả</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="result-count" id="resultCount"></span>
+            <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Video ID</th>
+                <th>Views</th>
+                <th>Likes</th>
+                <th>Comments</th>
+                <th>Shares</th>
+                <th>Link</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const urlCountNum = document.getElementById('urlCountNum');
+    const runBtn = document.getElementById('runBtn');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const logPanel = document.getElementById('logPanel');
+    const logBox = document.getElementById('logBox');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const resultsBody = document.getElementById('resultsBody');
+    const resultCount = document.getElementById('resultCount');
+
+    let allResults = [];
+
+    urlInput.addEventListener('input', () => {
+      const urls = getUrls();
+      urlCountNum.textContent = urls.length;
+    });
+
+    function getUrls() {
+      return urlInput.value.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+    }
+
+    function log(msg, type = '') {
+      const now = new Date().toLocaleTimeString('vi-VN');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">[${now}]</span><span class="${type ? 'log-' + type : ''}">${msg}</span>`;
+      logBox.appendChild(entry);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = `toast ${type} show`;
+      setTimeout(() => toast.className = 'toast', 3000);
+    }
+
+    function renderRow(data, index) {
+      const tr = document.createElement('tr');
+      tr.style.animationDelay = `${index * 60}ms`;
+      tr.innerHTML = `
+        <td style="color:var(--muted)">${index + 1}</td>
+        <td style="color:var(--text);font-weight:700">${data.video_id || 'N/A'}</td>
+        <td><span class="stat-pill pill-views">👁 ${data.views || 'N/A'}</span></td>
+        <td><span class="stat-pill pill-likes">❤️ ${data.likes || '0'}</span></td>
+        <td><span class="stat-pill pill-comments">💬 ${data.comments || '0'}</span></td>
+        <td><span class="stat-pill pill-shares">↗️ ${data.shares || '0'}</span></td>
+        <td class="td-url"><a href="${data.url}" target="_blank" title="${data.url}">
+          ${data.url.replace('https://www.facebook.com/', 'fb.com/')}
+        </a></td>
+      `;
+      return tr;
+    }
+
+    async function startScrape() {
+      const urls = getUrls();
+      if (!urls.length) {
+        showToast('Vui lòng nhập ít nhất 1 URL!', 'error');
+        return;
+      }
+
+      // Reset UI
+      allResults = [];
+      resultsBody.innerHTML = '';
+      logBox.innerHTML = '';
+      runBtn.disabled = true;
+      runBtn.innerHTML = '<div class="spinner"></div> Đang xử lý...';
+      progressWrap.style.display = 'block';
+      progressText.style.display = 'block';
+      logPanel.style.display = 'block';
+      resultsPanel.style.display = 'block';
+      progressBar.style.width = '0%';
+
+      log(`Bắt đầu scrape ${urls.length} URL...`);
+
+      try {
+        const res = await fetch('/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ urls })
+        });
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const json = line.slice(6).trim();
+            if (!json) continue;
+
+            try {
+              const msg = JSON.parse(json);
+
+              if (msg.type === 'progress') {
+                const pct = Math.round(((msg.index) / msg.total) * 100);
+                progressBar.style.width = pct + '%';
+                progressText.textContent = `Đang xử lý ${msg.index + 1} / ${msg.total}`;
+                log(`→ Đang scrape: ${msg.url.replace('https://www.facebook.com/', 'fb.com/')}`);
+              }
+
+              if (msg.type === 'result') {
+                const d = msg.data;
+                allResults.push(d);
+                const tr = renderRow(d, msg.index);
+                resultsBody.appendChild(tr);
+                const hasErr = d.error;
+                log(
+                  `✓ ID ${d.video_id} — 👁 ${d.views} | ❤️ ${d.likes} | 💬 ${d.comments} | ↗️ ${d.shares}`,
+                  hasErr ? 'err' : 'ok'
+                );
+              }
+
+              if (msg.type === 'done') {
+                progressBar.style.width = '100%';
+                progressText.textContent = `Hoàn thành ${msg.results.length} URL`;
+                resultCount.textContent = `${msg.results.length} kết quả`;
+                log(`✅ Xong! Đã scrape ${msg.results.length} video.`, 'ok');
+                showToast(`✅ Hoàn thành ${msg.results.length} video!`);
+              }
+
+            } catch (e) { /* skip parse err */ }
+          }
+        }
+      } catch (e) {
+        log('❌ Lỗi kết nối: ' + e.message, 'err');
+      } finally {
+        runBtn.disabled = false;
+        runBtn.innerHTML = '<span class="btn-icon">⚡</span> Bắt đầu Scrape';
+      }
+    }
+
+    function exportCSV() {
+      if (!allResults.length) return;
+      const header = ['#', 'Video ID', 'Views', 'Likes', 'Comments', 'Shares', 'URL'];
+      const rows = allResults.map((r, i) => [
+        i + 1, r.video_id || '', r.views || '', r.likes || '', r.comments || '', r.shares || '', r.url
+      ]);
+      const csv = [header, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `fb_stats_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      showToast('✅ Đã export CSV!');
+    }
+  </script>
+</body>
+
+</html>
