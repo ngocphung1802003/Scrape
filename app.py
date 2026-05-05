@@ -20,12 +20,22 @@ def setup_driver():
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument(
         "--disable-blink-features=AutomationControlled")
-    chrome_options.add_argument("--lang=vi")
-    chrome_options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-    return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
-# --- LOGIC CÀO DỮ LIỆU ---
+    # Chỉ định đường dẫn binary của Chromium trên Linux
+    chrome_options.binary_location = "/usr/bin/chromium-browser"
+
+    # Khởi tạo service trỏ trực tiếp vào driver đã cài qua packages.txt
+    service = Service("/usr/bin/chromedriver")
+
+    try:
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+    except Exception as e:
+        # Nếu vẫn lỗi, thử dùng webdriver_manager làm phương án dự phòng
+        from webdriver_manager.chrome import ChromeDriverManager
+        driver = webdriver.Chrome(service=Service(
+            ChromeDriverManager().install()), options=chrome_options)
+
+    return driver
 
 
 def get_id(url):

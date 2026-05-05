@@ -1,6 +1,5 @@
 chromium-browser
-    chromium-chromedriver
-    ```
+chromium-chromedriver
 
 ### 4. Bước cuối cùng
 1. Truy cập [share.streamlit.io](https://share.streamlit.io/).
